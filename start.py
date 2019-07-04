@@ -6,19 +6,18 @@ import os
 import logging
 import colorlog
 import json
-from brutedns import Brutedomain   #  is subdomain3
 from functools import reduce 
 import time
 import sys
 import dns.resolver
 import sendwx
 import csv
+from brutedns import Brutedomain   #  is subdomain3
 
 
 
 
-
-sys.setrecursionlimit(100000000)
+# sys.setrecursionlimit(10000)
 '''
 set log this code is Useless
 log.debug  is white ,info is green ,warn is yellow ,error is red ,critical  red!
@@ -59,6 +58,7 @@ class start:
         self.black_ip = {"114.114.114.114":11,"1.1.1.1":11}  #sql.select_black()     #   泛解析黑名单ip字典
     
     def subscan(self):
+        # sendwx.send_data("222")
         scan_domain = sql.select_domain(status=0)[0]
         while True:
             if scan_domain:
@@ -88,7 +88,7 @@ class start:
                         
                     log.info("start  subdomain3")
                     # break
-                    brute = Brutedomain(domain=scan_domain,level =4,sub_file = self.config_main.sub_dict,speed='high',next_sub_dict = self.config_main.next_sub_dict,realdict = self.config_main.real_subdict )     
+                    brute = Brutedomain(domain=scan_domain,level =3,sub_file = self.config_main.sub_dict,speed='high',next_sub_dict = self.config_main.next_sub_dict,realdict = self.config_main.real_subdict )     
                     # domain,level,sub_file,speed,next_sub_dict,other_file
                     brute.run()
                     log.info("total {} domains get at output/{name}/{name}.csv".format(str(brute.found_count),name = scan_domain))
@@ -97,6 +97,7 @@ class start:
                     sql.update_status(scan_domain,status=2)
                 except Exception as err:
                     log.error(err)
+                    
                 if sql.select_id(scan_domain) > lastid:
                     sendwx.send_data("new subdomains alert")
                     sendwx.send_data(sql.select_sub(scan_domain,lastid))
@@ -104,8 +105,8 @@ class start:
                     scan_domain = sql.select_domain(status=0) #  select status is 1 domain to scan    if scan_domain =""  set all status =1                
                     if scan_domain:
                         scan_domain = scan_domain[0]
-                except:
-                    pass
+                except Exception as er:
+                    log.error(er)
         
             else:
                 log.warn("no  domain  to scan")  # test
@@ -125,16 +126,18 @@ class start:
                     insert_data.append((ain,'Null',domain,'Null',str(ips),'0','0','0'))
                 else:
                     insert_data.append((ain,'Null',domain,'Null',str(ips),'0','0','1'))
-        
-        res = sql.insert_subdomain(insert_data)
-        log.info(res)
-        if res == "success":
-            log.info("save {} success".format(domain))
-            sendwx.send_data(" save {} success".format(domain))
-        else:
-            log.error(res)
-            sendwx.send_data(" save {} error".format(domain))
-            sendwx.send_data(str(res))
+        try:
+            res = sql.insert_subdomain(insert_data)
+            log.info(res)
+            if res == "success":
+                log.info("save {} success".format(domain))
+                sendwx.send_data(" save {} success".format(domain))
+            else:
+                log.error(res)
+                sendwx.send_data(" save {} error".format(domain))
+                sendwx.send_data(str(res))
+        except Exception as ess:
+            log.error(ess)
 
     def ip_into_int(self,ip):
         return reduce(lambda x,y:(x<<8)+y,map(int,ip.split('.')))
